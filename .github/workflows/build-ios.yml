@@ -1,0 +1,84 @@
+name: Build unsigned iOS IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Prebuild native iOS project
+        run: npx expo prebuild --platform ios --non-interactive
+
+      - name: Install CocoaPods dependencies
+        run: pod install
+        working-directory: ios
+
+      - name: Determine workspace and scheme
+        id: xc
+        run: |
+          workspace=$(ls ios | grep '\.xcworkspace$' | head -n1)
+          echo "workspace=ios/${workspace}" >> "$GITHUB_OUTPUT"
+          scheme=$(xcodebuild -list -workspace "ios/${workspace}" -json | \
+            node -e "process.stdin.on('data', d => process.stdout.write(JSON.parse(d).workspace.schemes[0]))")
+          echo "scheme=${scheme}" >> "$GITHUB_OUTPUT"
+          echo "Workspace: ios/${workspace}, Scheme: ${scheme}"
+
+      - name: Archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -workspace "${{ steps.xc.outputs.workspace }}" \
+            -scheme "${{ steps.xc.outputs.scheme }}" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$PWD/build/App.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER=""
+
+      - name: Package IPA (ad-hoc signed)
+        run: |
+          set -euo pipefail
+          app_path=$(find build/App.xcarchive/Products/Applications -maxdepth 1 -name "*.app")
+          mkdir -p build/Payload
+          cp -r "$app_path" build/Payload/
+          codesign --force --deep --sign - "build/Payload/$(basename "$app_path")"
+          cd build
+          zip -qr AppleTest.ipa Payload
+          cd ..
+          mv build/AppleTest.ipa .
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppleTest-ipa
+          path: AppleTest.ipa
+
+      - name: Publish GitHub Release with IPA
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: AppleTest build ${{ github.run_number }}
+          files: AppleTest.ipa
+          body: |
+            Unsigned/ad-hoc-signed IPA. Download AppleTest.ipa on your iPhone
+            and install it with SideStore or AltStore.
