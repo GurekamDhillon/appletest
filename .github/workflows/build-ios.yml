@@ -15,6 +15,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select latest available Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          latest="${latest:-/Applications/Xcode.app}"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
