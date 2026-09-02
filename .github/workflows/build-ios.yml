@@ -29,7 +29,7 @@ jobs:
           cache: npm
 
       - name: Install JS dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Prebuild native iOS project
         run: npx expo prebuild --platform ios --non-interactive
@@ -70,22 +70,22 @@ jobs:
           cp -r "$app_path" build/Payload/
           codesign --force --deep --sign - "build/Payload/$(basename "$app_path")"
           cd build
-          zip -qr AppleTest.ipa Payload
+          zip -qr FieldOps.ipa Payload
           cd ..
-          mv build/AppleTest.ipa .
+          mv build/FieldOps.ipa .
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AppleTest-ipa
-          path: AppleTest.ipa
+          name: FieldOps-ipa
+          path: FieldOps.ipa
 
       - name: Publish GitHub Release with IPA
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: AppleTest build ${{ github.run_number }}
-          files: AppleTest.ipa
+          name: FieldOps build ${{ github.run_number }}
+          files: FieldOps.ipa
           body: |
-            Unsigned/ad-hoc-signed IPA. Download AppleTest.ipa on your iPhone
+            Unsigned/ad-hoc-signed IPA. Download FieldOps.ipa on your iPhone
             and install it with SideStore or AltStore.
