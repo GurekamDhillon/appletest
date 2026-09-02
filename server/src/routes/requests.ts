@@ -34,8 +34,23 @@ requestsRouter.patch('/:id/fulfill', (req, res) => {
     res.status(404).json({ error: 'Request not found.' });
     return;
   }
+  if (request.status === 'cancelled') {
+    res.status(400).json({ error: 'Request is cancelled.' });
+    return;
+  }
   request.status = 'fulfilled';
   request.fulfilledAt = new Date().toISOString();
+  updateRequest(request);
+  res.json(getRequest(request.id));
+});
+
+requestsRouter.patch('/:id/cancel', (req, res) => {
+  const request = getRequest(req.params.id);
+  if (!request) {
+    res.status(404).json({ error: 'Request not found.' });
+    return;
+  }
+  request.status = 'cancelled';
   updateRequest(request);
   res.json(getRequest(request.id));
 });

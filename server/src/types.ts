@@ -21,6 +21,7 @@ export interface SalesOrder {
   stageHistory: StageTransition[];
   podPhotoUri?: string;
   notes?: string;
+  cancelled: boolean;
 }
 
 export type RequestType = 'flha' | 'vehicle_inspection' | 'office_inspection' | 'receiving';
@@ -39,7 +40,7 @@ export interface PaperworkRequest {
   vehicleLabel?: string;
   note?: string;
   dueDate?: string;
-  status: 'open' | 'fulfilled';
+  status: 'open' | 'fulfilled' | 'cancelled';
   createdAt: string;
   fulfilledAt?: string;
 }

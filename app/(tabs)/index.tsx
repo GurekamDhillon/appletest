@@ -95,7 +95,8 @@ export default function HomeScreen() {
     // Sales orders
     try {
       const orders = await getOrders();
-      const stuck = orders.filter((o) => {
+      const active = orders.filter((o) => !o.cancelled);
+      const stuck = active.filter((o) => {
         if (o.stage !== 'collected' && o.stage !== 'delivered') return false;
         const last = o.stageHistory[o.stageHistory.length - 1];
         return last ? daysSince(last.at) >= 3 : false;
@@ -104,7 +105,7 @@ export default function HomeScreen() {
         key: 'orders',
         href: '/orders',
         title: 'Sales orders',
-        subtitle: stuck === 0 ? `${orders.length} open` : `${stuck} stuck >3 days`,
+        subtitle: stuck === 0 ? `${active.length} open` : `${stuck} stuck >3 days`,
         tone: stuck === 0 ? 'neutral' : 'danger',
         urgency: stuck === 0 ? 0 : 3,
       });

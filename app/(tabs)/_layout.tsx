@@ -50,6 +50,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="archive-outline" color={color} size={size} />,
         }}
       />
+      <Tabs.Screen
+        name="requests"
+        options={{
+          title: 'Requests',
+          tabBarIcon: ({ color, size }) => <Ionicons name="mail-unread-outline" color={color} size={size} />,
+        }}
+      />
     </Tabs>
   );
 }

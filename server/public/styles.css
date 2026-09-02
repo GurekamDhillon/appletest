@@ -155,6 +155,68 @@ select {
   padding: 24px 0;
 }
 
+.badge-cancelled {
+  background: #efeff1;
+  color: #8a8a8e;
+  text-decoration: line-through;
+}
+
+.row-cancelled td {
+  opacity: 0.55;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 0;
+  width: auto;
+  cursor: pointer;
+}
+
+.link-button.danger {
+  color: #d70015;
+}
+
+.detail-row td {
+  background: #fafafa;
+  padding: 16px;
+}
+
+.detail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage-history {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pod-thumb {
+  max-width: 160px;
+  border-radius: 8px;
+  display: block;
+  border: 1px solid var(--border);
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.detail-actions button {
+  width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
 [hidden] {
   display: none !important;
 }

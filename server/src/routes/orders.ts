@@ -39,6 +39,7 @@ ordersRouter.post('/', (req, res) => {
     stageHistory: [{ stage: 'requested' as OrderStage, at: now }],
     notes: notes ? String(notes) : undefined,
     createdAt: now,
+    cancelled: false,
   };
   insertOrder(order);
   res.status(201).json(getOrder(order.id));
@@ -57,10 +58,26 @@ ordersRouter.patch('/:id', (req, res) => {
   res.json(getOrder(order.id));
 });
 
+ordersRouter.patch('/:id/cancel', (req, res) => {
+  const order = getOrder(req.params.id);
+  if (!order) {
+    res.status(404).json({ error: 'Order not found.' });
+    return;
+  }
+  const { cancelled } = req.body ?? {};
+  order.cancelled = cancelled === undefined ? true : Boolean(cancelled);
+  updateOrder(order);
+  res.json(getOrder(order.id));
+});
+
 ordersRouter.patch('/:id/stage', (req, res) => {
   const order = getOrder(req.params.id);
   if (!order) {
     res.status(404).json({ error: 'Order not found.' });
+    return;
+  }
+  if (order.cancelled) {
+    res.status(400).json({ error: 'Order is cancelled.' });
     return;
   }
   const { stage } = req.body ?? {};
@@ -86,6 +103,10 @@ ordersRouter.post('/:id/pod', upload.single('photo'), (req, res) => {
   }
   if (!req.file) {
     res.status(400).json({ error: 'photo file is required.' });
+    return;
+  }
+  if (order.cancelled) {
+    res.status(400).json({ error: 'Order is cancelled.' });
     return;
   }
   order.podPhotoUri = `/uploads/${req.file.filename}`;

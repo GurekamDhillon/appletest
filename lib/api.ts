@@ -80,12 +80,30 @@ export function advanceStage(id: string, stage: OrderStage): Promise<SalesOrder>
   });
 }
 
+export function updateOrderNotes(id: string, notes: string): Promise<SalesOrder> {
+  return request<SalesOrder>(`/orders/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ notes: notes.trim() || undefined }),
+  });
+}
+
+export function cancelOrder(id: string, cancelled: boolean): Promise<SalesOrder> {
+  return request<SalesOrder>(`/orders/${id}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({ cancelled }),
+  });
+}
+
 export function getRequests(): Promise<PaperworkRequest[]> {
   return request<PaperworkRequest[]>('/requests');
 }
 
 export function fulfillRequest(id: string): Promise<PaperworkRequest> {
   return request<PaperworkRequest>(`/requests/${id}/fulfill`, { method: 'PATCH' });
+}
+
+export function cancelRequest(id: string): Promise<PaperworkRequest> {
+  return request<PaperworkRequest>(`/requests/${id}/cancel`, { method: 'PATCH' });
 }
 
 /**
@@ -100,11 +118,12 @@ export async function autoCloseMatchingRequest(
 ): Promise<void> {
   try {
     const requests = await getRequests();
+    const normalize = (s?: string) => (s ?? '').trim().toLowerCase();
     const candidates = requests.filter(
       (r) =>
         r.status === 'open' &&
         r.type === type &&
-        (type !== 'vehicle_inspection' || r.vehicleLabel === vehicleLabel)
+        (type !== 'vehicle_inspection' || normalize(r.vehicleLabel) === normalize(vehicleLabel))
     );
     candidates.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     const match = candidates[0];

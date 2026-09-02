@@ -1,10 +1,17 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Card, PrimaryButton, StatusPill, PillTone } from '../../../components/ui';
+import { Card, PrimaryButton, SecondaryButton, StatusPill, PillTone } from '../../../components/ui';
 import { ORDER_STAGE_LABELS, ORDER_STAGES, OrderStage, SalesOrder } from '../../../lib/models';
-import { advanceStage, getApiSettings, getOrders, uploadPod } from '../../../lib/api';
+import {
+  advanceStage,
+  cancelOrder,
+  getApiSettings,
+  getOrders,
+  updateOrderNotes,
+  uploadPod,
+} from '../../../lib/api';
 import { capturePhoto } from '../../../lib/attachments';
 import { formatDate } from '../../../lib/dates';
 
@@ -18,15 +25,17 @@ const STAGE_TONE: Record<string, PillTone> = {
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const [order, setOrder] = useState<SalesOrder | null>(null);
+  const [notes, setNotes] = useState('');
   const [photoBaseUrl, setPhotoBaseUrl] = useState('');
   const [accessCode, setAccessCode] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [orders, settings] = await Promise.all([getOrders(), getApiSettings()]);
-    setOrder(orders.find((o) => o.id === id) ?? null);
+    const found = orders.find((o) => o.id === id) ?? null;
+    setOrder(found);
+    setNotes(found?.notes ?? '');
     setPhotoBaseUrl(settings?.baseUrl ?? '');
     setAccessCode(settings?.accessCode ?? '');
   }, [id]);
@@ -68,6 +77,48 @@ export default function OrderDetailScreen() {
     }
   }
 
+  async function handleSaveNotes() {
+    if (!order) return;
+    setBusy(true);
+    try {
+      const updated = await updateOrderNotes(order.id, notes);
+      setOrder(updated);
+    } catch (err) {
+      Alert.alert('Failed to save notes', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleToggleCancel() {
+    if (!order) return;
+    const willCancel = !order.cancelled;
+    Alert.alert(
+      willCancel ? 'Cancel this order?' : 'Restore this order?',
+      willCancel
+        ? 'Staff will see it marked cancelled. You can restore it later if needed.'
+        : 'This order will become active again.',
+      [
+        { text: 'Never mind', style: 'cancel' },
+        {
+          text: willCancel ? 'Cancel Order' : 'Restore Order',
+          style: willCancel ? 'destructive' : 'default',
+          onPress: async () => {
+            setBusy(true);
+            try {
+              const updated = await cancelOrder(order.id, willCancel);
+              setOrder(updated);
+            } catch (err) {
+              Alert.alert('Failed', err instanceof Error ? err.message : 'Unknown error');
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (!order) {
     return (
       <SafeAreaView style={styles.container}>
@@ -84,10 +135,13 @@ export default function OrderDetailScreen() {
         <Card>
           <View style={styles.headerRow}>
             <Text style={styles.headerTitle}>{order.orderRef}</Text>
-            <StatusPill label={ORDER_STAGE_LABELS[order.stage]} tone={STAGE_TONE[order.stage]} />
+            {order.cancelled ? (
+              <StatusPill label="Cancelled" tone="neutral" />
+            ) : (
+              <StatusPill label={ORDER_STAGE_LABELS[order.stage]} tone={STAGE_TONE[order.stage]} />
+            )}
           </View>
           <Text style={styles.client}>{order.client}</Text>
-          {order.notes ? <Text style={styles.notes}>{order.notes}</Text> : null}
         </Card>
 
         <Card>
@@ -113,11 +167,29 @@ export default function OrderDetailScreen() {
           </Card>
         ) : null}
 
-        {order.stage === 'delivered' ? (
-          <PrimaryButton label="Attach POD & Submit" onPress={handleAttachPod} disabled={busy} />
-        ) : nextStage && nextStage !== 'pod_submitted' ? (
-          <PrimaryButton label={`Advance to ${ORDER_STAGE_LABELS[nextStage]}`} onPress={handleAdvance} disabled={busy} />
-        ) : null}
+        <Card>
+          <Text style={styles.sectionLabel}>Notes</Text>
+          <TextInput
+            style={styles.notesInput}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Anything staff should know…"
+            multiline
+          />
+          <SecondaryButton label="Save Notes" onPress={handleSaveNotes} />
+        </Card>
+
+        {!order.cancelled &&
+          (order.stage === 'delivered' ? (
+            <PrimaryButton label="Attach POD & Submit" onPress={handleAttachPod} disabled={busy} />
+          ) : nextStage && nextStage !== 'pod_submitted' ? (
+            <PrimaryButton label={`Advance to ${ORDER_STAGE_LABELS[nextStage]}`} onPress={handleAdvance} disabled={busy} />
+          ) : null)}
+
+        <SecondaryButton
+          label={order.cancelled ? 'Restore Order' : 'Cancel Order'}
+          onPress={handleToggleCancel}
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -129,11 +201,20 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   headerTitle: { fontSize: 18, fontWeight: '700' },
   client: { fontSize: 15, color: '#3A3A3C', marginBottom: 4 },
-  notes: { fontSize: 14, color: '#6B6B70' },
   sectionLabel: { fontSize: 13, fontWeight: '600', color: '#6B6B70', marginBottom: 8 },
   historyRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
   historyStage: { fontSize: 14, fontWeight: '500' },
   historyDate: { fontSize: 14, color: '#8A8A8E' },
   photo: { width: '100%', height: 220, borderRadius: 8, backgroundColor: '#E5E5EA' },
+  notesInput: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#C7C7CC',
+    borderRadius: 8,
+    padding: 12,
+    minHeight: 70,
+    textAlignVertical: 'top',
+    fontSize: 15,
+    marginBottom: 10,
+  },
   empty: { textAlign: 'center', color: '#8A8A8E', marginTop: 24 },
 });

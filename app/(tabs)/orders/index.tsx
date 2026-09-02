@@ -48,6 +48,7 @@ export default function OrdersScreen() {
   }
 
   function isStale(order: SalesOrder): boolean {
+    if (order.cancelled) return false;
     if (order.stage !== 'collected' && order.stage !== 'delivered') return false;
     const lastTransition = order.stageHistory[order.stageHistory.length - 1];
     if (!lastTransition) return false;
@@ -83,7 +84,11 @@ export default function OrdersScreen() {
                   <Text style={styles.client}>{item.client}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                  <StatusPill label={ORDER_STAGE_LABELS[item.stage]} tone={STAGE_TONE[item.stage]} />
+                  {item.cancelled ? (
+                    <StatusPill label="Cancelled" tone="neutral" />
+                  ) : (
+                    <StatusPill label={ORDER_STAGE_LABELS[item.stage]} tone={STAGE_TONE[item.stage]} />
+                  )}
                   {isStale(item) ? <StatusPill label="Stuck" tone="danger" /> : null}
                 </View>
               </Card>

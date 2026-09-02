@@ -22,6 +22,11 @@ db.exec(`
   )
 `);
 
+const orderColumns = db.prepare('PRAGMA table_info(orders)').all() as { name: string }[];
+if (!orderColumns.some((c) => c.name === 'cancelled')) {
+  db.exec('ALTER TABLE orders ADD COLUMN cancelled INTEGER NOT NULL DEFAULT 0');
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS requests (
     id TEXT PRIMARY KEY,
@@ -44,6 +49,7 @@ interface OrderRow {
   podPhotoUri: string | null;
   notes: string | null;
   createdAt: string;
+  cancelled: number;
 }
 
 function rowToOrder(row: OrderRow): SalesOrder {
@@ -55,6 +61,7 @@ function rowToOrder(row: OrderRow): SalesOrder {
     stageHistory: JSON.parse(row.stageHistory) as StageTransition[],
     podPhotoUri: row.podPhotoUri ?? undefined,
     notes: row.notes ?? undefined,
+    cancelled: Boolean(row.cancelled),
   };
 }
 
@@ -70,8 +77,8 @@ export function getOrder(id: string): SalesOrder | undefined {
 
 export function insertOrder(order: SalesOrder & { createdAt: string }): void {
   db.prepare(
-    `INSERT INTO orders (id, orderRef, client, stage, stageHistory, podPhotoUri, notes, createdAt)
-     VALUES (@id, @orderRef, @client, @stage, @stageHistory, @podPhotoUri, @notes, @createdAt)`
+    `INSERT INTO orders (id, orderRef, client, stage, stageHistory, podPhotoUri, notes, createdAt, cancelled)
+     VALUES (@id, @orderRef, @client, @stage, @stageHistory, @podPhotoUri, @notes, @createdAt, @cancelled)`
   ).run({
     id: order.id,
     orderRef: order.orderRef,
@@ -81,6 +88,7 @@ export function insertOrder(order: SalesOrder & { createdAt: string }): void {
     podPhotoUri: order.podPhotoUri ?? null,
     notes: order.notes ?? null,
     createdAt: order.createdAt,
+    cancelled: order.cancelled ? 1 : 0,
   });
 }
 
@@ -147,7 +155,8 @@ export function updateRequest(request: PaperworkRequest): void {
 export function updateOrder(order: SalesOrder): void {
   db.prepare(
     `UPDATE orders SET orderRef = @orderRef, client = @client, stage = @stage,
-       stageHistory = @stageHistory, podPhotoUri = @podPhotoUri, notes = @notes
+       stageHistory = @stageHistory, podPhotoUri = @podPhotoUri, notes = @notes,
+       cancelled = @cancelled
      WHERE id = @id`
   ).run({
     id: order.id,
@@ -157,5 +166,6 @@ export function updateOrder(order: SalesOrder): void {
     stageHistory: JSON.stringify(order.stageHistory),
     podPhotoUri: order.podPhotoUri ?? null,
     notes: order.notes ?? null,
+    cancelled: order.cancelled ? 1 : 0,
   });
 }

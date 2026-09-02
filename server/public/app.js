@@ -38,6 +38,9 @@ const requestsBody = document.getElementById('requests-body');
 const requestsEmpty = document.getElementById('requests-empty');
 
 let pollHandle = null;
+let latestOrders = [];
+let latestRequests = [];
+const expandedOrders = new Set();
 
 function refreshAll() {
   refreshOrders();
@@ -99,19 +102,101 @@ async function refreshOrders() {
 }
 
 function renderOrders(orders) {
+  latestOrders = orders;
   ordersBody.innerHTML = '';
   ordersEmpty.hidden = orders.length > 0;
   for (const order of orders) {
     const row = document.createElement('tr');
+    if (order.cancelled) row.className = 'row-cancelled';
+    const stageBadge = order.cancelled
+      ? `<span class="badge badge-cancelled">Cancelled</span>`
+      : `<span class="badge badge-${order.stage}">${STAGE_LABELS[order.stage] ?? order.stage}</span>`;
     row.innerHTML = `
       <td>${escapeHtml(order.orderRef)}</td>
       <td>${escapeHtml(order.client)}</td>
-      <td><span class="badge badge-${order.stage}">${STAGE_LABELS[order.stage] ?? order.stage}</span></td>
+      <td>${stageBadge}</td>
       <td>${escapeHtml(order.notes ?? '')}</td>
+      <td><button class="link-button" data-action="toggle-order" data-id="${order.id}">${expandedOrders.has(order.id) ? 'Hide' : 'Details'}</button></td>
     `;
     ordersBody.appendChild(row);
+
+    if (expandedOrders.has(order.id)) {
+      ordersBody.appendChild(renderOrderDetailRow(order));
+    }
   }
 }
+
+function renderOrderDetailRow(order) {
+  const row = document.createElement('tr');
+  row.className = 'detail-row';
+  const history = order.stageHistory
+    .map((t) => `<div>${STAGE_LABELS[t.stage] ?? t.stage} — ${new Date(t.at).toLocaleString()}</div>`)
+    .join('');
+  const pod = order.podPhotoUri
+    ? `<a href="${order.podPhotoUri}" target="_blank" rel="noopener"><img class="pod-thumb" src="${order.podPhotoUri}" alt="Proof of delivery" /></a>`
+    : `<span style="color: var(--muted); font-size: 13px;">No proof of delivery yet.</span>`;
+  row.innerHTML = `
+    <td colspan="5">
+      <div class="detail-grid">
+        <div>
+          <strong style="font-size: 13px;">Stage history</strong>
+          <div class="stage-history">${history}</div>
+        </div>
+        <div>
+          <strong style="font-size: 13px;">Proof of delivery</strong>
+          <div>${pod}</div>
+        </div>
+        <div>
+          <strong style="font-size: 13px;">Notes</strong>
+          <textarea data-notes-for="${order.id}">${escapeHtml(order.notes ?? '')}</textarea>
+        </div>
+        <div class="detail-actions">
+          <button class="link-button" data-action="save-notes" data-id="${order.id}">Save Notes</button>
+          <button class="link-button danger" data-action="toggle-cancel-order" data-id="${order.id}">
+            ${order.cancelled ? 'Restore Order' : 'Cancel Order'}
+          </button>
+        </div>
+      </div>
+    </td>
+  `;
+  return row;
+}
+
+ordersBody.addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action]');
+  if (!button) return;
+  const id = button.dataset.id;
+  const order = latestOrders.find((o) => o.id === id);
+
+  if (button.dataset.action === 'toggle-order') {
+    if (expandedOrders.has(id)) expandedOrders.delete(id);
+    else expandedOrders.add(id);
+    renderOrders(latestOrders);
+    return;
+  }
+
+  if (button.dataset.action === 'save-notes') {
+    const textarea = ordersBody.querySelector(`textarea[data-notes-for="${id}"]`);
+    const res = await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: textarea.value.trim() || undefined }),
+    });
+    if (res.status === 401) return showLogin();
+    await refreshOrders();
+    return;
+  }
+
+  if (button.dataset.action === 'toggle-cancel-order') {
+    const res = await fetch(`/api/orders/${id}/cancel`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cancelled: !(order && order.cancelled) }),
+    });
+    if (res.status === 401) return showLogin();
+    await refreshOrders();
+  }
+});
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -159,22 +244,39 @@ async function refreshRequests() {
   renderRequests(requests);
 }
 
+const REQUEST_STATUS_LABELS = { open: 'Open', fulfilled: 'Fulfilled', cancelled: 'Cancelled' };
+
 function renderRequests(requests) {
+  latestRequests = requests;
   requestsBody.innerHTML = '';
   requestsEmpty.hidden = requests.length > 0;
   for (const r of requests) {
     const row = document.createElement('tr');
+    if (r.status === 'cancelled') row.className = 'row-cancelled';
     const typeLabel = REQUEST_TYPE_LABELS[r.type] ?? r.type;
     const label = r.vehicleLabel ? `${typeLabel} (${escapeHtml(r.vehicleLabel)})` : typeLabel;
+    const action =
+      r.status === 'open'
+        ? `<button class="link-button danger" data-action="cancel-request" data-id="${r.id}">Cancel</button>`
+        : '';
     row.innerHTML = `
       <td>${label}</td>
       <td>${r.dueDate ? escapeHtml(r.dueDate) : '—'}</td>
       <td>${escapeHtml(r.note ?? '')}</td>
-      <td><span class="badge badge-${r.status}">${r.status === 'open' ? 'Open' : 'Fulfilled'}</span></td>
+      <td><span class="badge badge-${r.status}">${REQUEST_STATUS_LABELS[r.status] ?? r.status}</span></td>
+      <td>${action}</td>
     `;
     requestsBody.appendChild(row);
   }
 }
+
+requestsBody.addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action="cancel-request"]');
+  if (!button) return;
+  const res = await fetch(`/api/requests/${button.dataset.id}/cancel`, { method: 'PATCH' });
+  if (res.status === 401) return showLogin();
+  await refreshRequests();
+});
 
 requestButton.addEventListener('click', async () => {
   requestError.hidden = true;

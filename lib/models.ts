@@ -55,6 +55,7 @@ export interface SalesOrder {
   stageHistory: StageTransition[];
   podPhotoUri?: string;
   notes?: string;
+  cancelled: boolean;
 }
 
 export interface PackingSlip {
@@ -89,7 +90,7 @@ export interface PaperworkRequest {
   vehicleLabel?: string;
   note?: string;
   dueDate?: string;
-  status: 'open' | 'fulfilled';
+  status: 'open' | 'fulfilled' | 'cancelled';
   createdAt: string;
   fulfilledAt?: string;
 }
