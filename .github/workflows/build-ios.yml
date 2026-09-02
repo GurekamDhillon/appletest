@@ -55,14 +55,15 @@ jobs:
           echo "scheme=${scheme}" >> "$GITHUB_OUTPUT"
           echo "Workspace: ios/${workspace}, Scheme: ${scheme}"
 
-      - name: Archive (unsigned)
+      - name: Build (unsigned)
         run: |
-          xcodebuild archive \
+          xcodebuild build \
             -workspace "${{ steps.xc.outputs.workspace }}" \
             -scheme "${{ steps.xc.outputs.scheme }}" \
             -configuration Release \
+            -sdk iphoneos \
             -destination "generic/platform=iOS" \
-            -archivePath "$PWD/build/App.xcarchive" \
+            -derivedDataPath "$PWD/build/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -72,10 +73,10 @@ jobs:
       - name: Package IPA (ad-hoc signed)
         run: |
           set -euo pipefail
-          app_path=$(find build/App.xcarchive -name "*.app" -maxdepth 6 | head -n1)
+          app_path=$(find build/DerivedData/Build/Products -name "*.app" -maxdepth 2 | head -n1)
           if [ -z "$app_path" ]; then
-            echo "No .app found in archive. Archive contents:"
-            find build/App.xcarchive
+            echo "No .app found in build products. Products dir contents:"
+            find build/DerivedData/Build/Products
             exit 1
           fi
           echo "Found app at: $app_path"
