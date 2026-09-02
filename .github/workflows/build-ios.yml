@@ -43,15 +43,12 @@ jobs:
         run: |
           workspace=$(ls ios | grep '\.xcworkspace$' | head -n1)
           echo "workspace=ios/${workspace}" >> "$GITHUB_OUTPUT"
-          scheme=$(xcodebuild -list -workspace "ios/${workspace}" -json | \
-            node -e "
-              let chunks = [];
-              process.stdin.on('data', d => chunks.push(d));
-              process.stdin.on('end', () => {
-                const parsed = JSON.parse(chunks.join(''));
-                process.stdout.write(parsed.workspace.schemes[0]);
-              });
-            ")
+          # The app's own scheme always matches the workspace's basename --
+          # `xcodebuild -list`'s schemes array also includes every CocoaPods
+          # subproject scheme (e.g. EXApplication), so picking schemes[0]
+          # from that list is unreliable and previously grabbed a Pod
+          # instead of the actual app.
+          scheme="${workspace%.xcworkspace}"
           echo "scheme=${scheme}" >> "$GITHUB_OUTPUT"
           echo "Workspace: ios/${workspace}, Scheme: ${scheme}"
 
