@@ -72,7 +72,13 @@ jobs:
       - name: Package IPA (ad-hoc signed)
         run: |
           set -euo pipefail
-          app_path=$(find build/App.xcarchive/Products/Applications -maxdepth 1 -name "*.app")
+          app_path=$(find build/App.xcarchive -name "*.app" -maxdepth 6 | head -n1)
+          if [ -z "$app_path" ]; then
+            echo "No .app found in archive. Archive contents:"
+            find build/App.xcarchive
+            exit 1
+          fi
+          echo "Found app at: $app_path"
           mkdir -p build/Payload
           cp -r "$app_path" build/Payload/
           codesign --force --deep --sign - "build/Payload/$(basename "$app_path")"
