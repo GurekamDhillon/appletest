@@ -1,0 +1,18 @@
+services:
+  fieldops:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ACCESS_CODE=${ACCESS_CODE}
+      - DB_PATH=/app/data/fieldops.db
+      - UPLOADS_DIR=/app/uploads
+    volumes:
+      - fieldops-data:/app/data
+      - fieldops-uploads:/app/uploads
+
+volumes:
+  fieldops-data:
+  fieldops-uploads:

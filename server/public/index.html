@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FieldOps — Sales Orders</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="login-screen">
+      <h1>FieldOps</h1>
+      <p class="subtitle">Enter the team access code to view and add sales orders.</p>
+      <div class="card">
+        <div id="login-error" class="error" hidden></div>
+        <input id="login-code" type="password" placeholder="Access code" autocomplete="off" />
+        <button id="login-button">Log In</button>
+      </div>
+    </div>
+
+    <div id="dashboard" hidden>
+      <h1>Sales Orders</h1>
+      <p class="subtitle">Orders you add here show up in the technician's app right away.</p>
+
+      <div class="card">
+        <div id="create-error" class="error" hidden></div>
+        <input id="order-ref" type="text" placeholder="Order reference" />
+        <input id="order-client" type="text" placeholder="Client / site" />
+        <textarea id="order-notes" placeholder="Notes (optional)"></textarea>
+        <button id="create-button">Add Order</button>
+      </div>
+
+      <div class="card">
+        <div id="request-error" class="error" hidden></div>
+        <select id="request-type">
+          <option value="flha">FLHA</option>
+          <option value="vehicle_inspection">Vehicle Inspection</option>
+          <option value="office_inspection">Office Inspection</option>
+          <option value="receiving">Receiving / Packing Slip</option>
+        </select>
+        <input id="request-vehicle" type="text" placeholder="Truck or Van (vehicle inspections only)" />
+        <input id="request-due" type="date" />
+        <textarea id="request-note" placeholder="Note (optional)"></textarea>
+        <button id="request-button">Request Paperwork</button>
+      </div>
+
+      <div class="card">
+        <table id="requests-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Due</th>
+              <th>Note</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="requests-body"></tbody>
+        </table>
+        <div id="requests-empty" class="empty" hidden>No paperwork requests yet.</div>
+      </div>
+
+      <div class="card">
+        <table id="orders-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Client</th>
+              <th>Stage</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body"></tbody>
+        </table>
+        <div id="orders-empty" class="empty" hidden>No orders yet.</div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
