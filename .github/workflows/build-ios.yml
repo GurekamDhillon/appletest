@@ -44,7 +44,14 @@ jobs:
           workspace=$(ls ios | grep '\.xcworkspace$' | head -n1)
           echo "workspace=ios/${workspace}" >> "$GITHUB_OUTPUT"
           scheme=$(xcodebuild -list -workspace "ios/${workspace}" -json | \
-            node -e "process.stdin.on('data', d => process.stdout.write(JSON.parse(d).workspace.schemes[0]))")
+            node -e "
+              let chunks = [];
+              process.stdin.on('data', d => chunks.push(d));
+              process.stdin.on('end', () => {
+                const parsed = JSON.parse(chunks.join(''));
+                process.stdout.write(parsed.workspace.schemes[0]);
+              });
+            ")
           echo "scheme=${scheme}" >> "$GITHUB_OUTPUT"
           echo "Workspace: ios/${workspace}, Scheme: ${scheme}"
 
